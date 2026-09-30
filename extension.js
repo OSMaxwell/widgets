@@ -253,7 +253,7 @@ class WidgetController {
       'changed::github-host', () => this._rebuildWidgets(),
       'changed::dim-when-focused', () => this._syncDim(),
       this);
-    global.display.connectObject('notify::focus-window', () => this._syncDim(), this);
+    global.display.connectObject('notify::focus-window', () => this._queueDim(), this);
 
     this._timeouts.push(GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
       this._refreshWidgets();
@@ -275,6 +275,11 @@ class WidgetController {
     Main.extensionManager.disconnectObject(this);
     this._layoutSettings.disconnectObject(this);
     global.display.disconnectObject(this);
+
+    if (this._dimTimeoutId) {
+      GLib.source_remove(this._dimTimeoutId);
+      this._dimTimeoutId = 0;
+    };
     this._interfaceSettings.disconnectObject(this);
     this._weatherSettings?.disconnectObject(this);
 
@@ -372,20 +377,63 @@ class WidgetController {
     this._layer.add_effect_with_name('dim', new Clutter.DesaturateEffect({factor: 0}));
     backgroundGroup.add_child(this._layer);
     raiseActor(this._layer);
+    this._dimLevel = 0;
     this._syncDim(false);
     this._syncLayerGeometry();
     this._workspaceIntegration.setSource(this._layer);
   };
 
   // macOS-style: fade widgets while an app window has focus.
-  _syncDim(animate = true) {
-    const focus = global.display.focus_window;
-    const dim = !this._editMode && this._layoutSettings.get_boolean('dim-when-focused') &&
-      Boolean(focus) && focus.window_type !== Meta.WindowType.DESKTOP;
-    const duration = animate ? 250 : 0;
+  // Debounced: focus briefly passes through null when switching windows.
+  _queueDim() {
+    if (this._dimTimeoutId) {
+      GLib.source_remove(this._dimTimeoutId);
+    };
 
-    this._layer?.ease({opacity: dim ? 179 : 255, duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
-    this._layer?.ease_property('@effects.dim.factor', dim ? 1 : 0, {duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+    this._dimTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+      this._dimTimeoutId = 0;
+      this._syncDim();
+      return GLib.SOURCE_REMOVE;
+    });
+  };
+
+  _syncDim(animate = true) {
+    const layer = this._layer;
+    const effect = layer?.get_effect('dim');
+
+    if (!effect) {
+      return;
+    };
+
+    const focus = global.display.focus_window;
+    const to = !this._editMode && this._layoutSettings.get_boolean('dim-when-focused') &&
+      Boolean(focus) && focus.window_type !== Meta.WindowType.DESKTOP ? 1 : 0;
+    const from = this._dimLevel ?? 0;
+    const apply = level => {
+      this._dimLevel = level;
+      effect.factor = level;
+      layer.opacity = Math.round(255 - 76 * level);
+    };
+
+    this._dimTimeline?.stop();
+    this._dimTimeline = null;
+
+    if (!animate || from === to) {
+      apply(to);
+      return;
+    };
+
+    // One timeline drives both greyscale and opacity so they fade together.
+    const timeline = new Clutter.Timeline({
+      actor: layer,
+      duration: Math.round((to ? 700 : 450) * Math.abs(to - from)),
+      progress_mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
+    });
+
+    timeline.connect('new-frame', () => apply(from + (to - from) * timeline.get_progress()));
+    timeline.connect('completed', () => apply(to));
+    this._dimTimeline = timeline;
+    timeline.start();
   };
 
   _syncLayerGeometry() {
