@@ -79,7 +79,7 @@ export function render({body, createLabel, theme}) {
 	const rows = {};
 
 	for (const [key, name] of [['kernel', 'Kernel'], ['cpu', 'CPU'], ['freq', 'Freq'], ['power', 'Power'], ['ram', 'RAM']]) {
-		const row = new St.BoxLayout({style_class: 'widget-system-row', x_expand: true});
+		const row = new St.BoxLayout({style_class: 'widget-system-row', x_expand: true, y_expand: true, y_align: Clutter.ActorAlign.CENTER});
 		const value = createLabel('–', 'widget-system-value', `color: ${theme.text};`);
 
 		value.x_align = Clutter.ActorAlign.END;
