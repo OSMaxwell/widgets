@@ -12,12 +12,16 @@ export const label = 'GitHub Activity';
 export const stylesheet = 'widgets/github/stylesheet.css';
 export const defaultSize = 'medium';
 
-const WEEKS = 26;
+const MAX_WEEKS = 53;
+const INSET = 32; // .widget padding 15px + border 1px, both sides
+const HEADER = 40;
+const SPACING = 10;
+const GAP = 3;
 const REFRESH_SECONDS = 600;
 const RETRY_SECONDS = 60;
 export const LEVELS = ['NONE', 'FIRST_QUARTILE', 'SECOND_QUARTILE', 'THIRD_QUARTILE', 'FOURTH_QUARTILE'];
 const GREENS = [null, '#0e4429', '#006d32', '#26a641', '#39d353'];
-const QUERY = `{ viewer { url contributionsCollection { contributionCalendar {
+const QUERY = `{ viewer { url login name avatarUrl(size: 96) contributionsCollection { contributionCalendar {
   totalContributions weeks { contributionDays { contributionLevel } } } } } }`;
 
 let session = null;
@@ -28,7 +32,15 @@ export const endpoint = host => host === 'github.com'
   ? 'https://api.github.com/graphql'
   : `https://${host}/api/graphql`;
 
-// GraphQL response -> {url, total, weeks: number[][] of level indexes}, last WEEKS weeks only.
+// Square size and week count that fill a widget of the given outer size.
+export function gridLayout(width, height) {
+  const cell = Math.floor((height - INSET - HEADER - SPACING - 6 * GAP) / 7);
+  const weeks = Math.min(MAX_WEEKS, Math.floor((width - INSET + GAP) / (cell + GAP)));
+
+  return {cell, weeks};
+};
+
+// GraphQL response -> {url, login, name, avatarUrl, total, weeks: number[][] of level indexes}.
 export function parseCalendar(json) {
   if (json.errors?.length) {
     throw new Error(json.errors[0].message);
@@ -39,20 +51,26 @@ export function parseCalendar(json) {
 
   return {
     url: viewer.url,
+    login: viewer.login,
+    name: viewer.name || viewer.login,
+    avatarUrl: viewer.avatarUrl,
     total: calendar.totalContributions,
-    weeks: calendar.weeks.slice(-WEEKS).map(week =>
+    weeks: calendar.weeks.slice(-MAX_WEEKS).map(week =>
       week.contributionDays.map(day => Math.max(0, LEVELS.indexOf(day.contributionLevel)))),
   };
 };
 
-async function fetchCalendar(host, token) {
+async function request(method, url, token, body = null) {
   session ??= new Soup.Session({timeout: 20});
 
-  const message = Soup.Message.new('POST', endpoint(host));
+  const message = Soup.Message.new(method, url);
   message.request_headers.append('Authorization', `bearer ${token}`);
   message.request_headers.append('User-Agent', 'gnome-shell-widgets');
-  message.set_request_body_from_bytes('application/json',
-    new GLib.Bytes(new TextEncoder().encode(JSON.stringify({query: QUERY}))));
+
+  if (body) {
+    message.set_request_body_from_bytes('application/json',
+      new GLib.Bytes(new TextEncoder().encode(JSON.stringify(body))));
+  };
 
   const bytes = await new Promise((resolve, reject) => {
     session.send_and_read_async(message, GLib.PRIORITY_DEFAULT, null, (_session, result) => {
@@ -68,7 +86,24 @@ async function fetchCalendar(host, token) {
     throw new Error(`HTTP ${message.status_code}`);
   };
 
-  return parseCalendar(JSON.parse(new TextDecoder().decode(bytes.get_data())));
+  return bytes.get_data();
+};
+
+async function fetchCalendar(host, token) {
+  return parseCalendar(JSON.parse(new TextDecoder().decode(await request('POST', endpoint(host), token, {query: QUERY}))));
+};
+
+// Avatars on GHE usually need auth, so download with the token. One file per URL: St caches textures by path.
+async function avatarFile(url, token) {
+  const dir = GLib.build_filenamev([GLib.get_user_cache_dir(), 'widgets']);
+  const path = GLib.build_filenamev([dir, `github-${GLib.compute_checksum_for_string(GLib.ChecksumType.MD5, url, -1)}.png`]);
+
+  if (!GLib.file_test(path, GLib.FileTest.EXISTS)) {
+    GLib.mkdir_with_parents(dir, 0o700);
+    GLib.file_set_contents(path, await request('GET', url, token));
+  };
+
+  return path;
 };
 
 export function onClick(extension) {
@@ -83,27 +118,42 @@ export function style(theme) {
   return `background-color: ${theme.background}; border-color: ${theme.border}; color: ${theme.text};`;
 };
 
-export function render({body, createLabel, theme, settings}) {
+export function render({body, createLabel, theme, settings, widget, sizeForWidget}) {
+  const {cell, weeks} = gridLayout(...sizeForWidget(widget));
+  const header = new St.BoxLayout({style_class: 'widget-github-header', x_expand: true});
+  const avatar = new St.Widget({style_class: 'widget-github-avatar', style: `background-color: ${theme.border};`});
+  const text = new St.BoxLayout({...VERTICAL, x_expand: true, y_align: Clutter.ActorAlign.CENTER});
   const title = createLabel('GitHub', 'widget-github-title', `color: ${theme.text};`);
+  const subtitle = createLabel('', 'widget-github-subtitle', `color: ${theme.muted};`);
   const grid = new St.BoxLayout({style_class: 'widget-github-grid', x_align: Clutter.ActorAlign.CENTER, y_expand: true, y_align: Clutter.ActorAlign.CENTER});
   const host = normalizeHost(settings.get_string('github-host'));
   let timeoutId = 0;
   let alive = true;
 
-  body.add_child(title);
+  title.clutter_text.set_line_wrap(false);
+  text.add_child(title);
+  text.add_child(subtitle);
+  header.add_child(avatar);
+  header.add_child(text);
+  body.add_child(header);
   body.add_child(grid);
 
   const draw = data => {
     grid.destroy_all_children();
-    title.text = `${data.total.toLocaleString()} contributions in the last year`;
+    title.text = data.name;
+    subtitle.text = `${data.total.toLocaleString()} contributions this year`;
 
-    for (const week of data.weeks) {
+    if (data.avatarPath) {
+      avatar.style = `background-image: url("file://${data.avatarPath}");`;
+    };
+
+    for (const week of data.weeks.slice(-weeks)) {
       const column = new St.BoxLayout({...VERTICAL, style_class: 'widget-github-week'});
 
       for (const level of week) {
         column.add_child(new St.Widget({
           style_class: 'widget-github-day',
-          style: `background-color: ${GREENS[level] ?? theme.border};`,
+          style: `width: ${cell}px; height: ${cell}px; background-color: ${GREENS[level] ?? theme.border};`,
         }));
       };
 
@@ -138,7 +188,11 @@ export function render({body, createLabel, theme, settings}) {
 
       const data = await fetchCalendar(host, token);
 
-      cache = {...data, host, time: GLib.get_monotonic_time()};
+      const avatarPath = data.avatarUrl
+        ? await avatarFile(data.avatarUrl, token).catch(() => null)
+        : null;
+
+      cache = {...data, avatarPath, host, time: GLib.get_monotonic_time()};
       profileUrl = data.url;
 
       if (alive) {
