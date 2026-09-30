@@ -25,7 +25,8 @@ import { WorkspaceIntegration } from './workspaceIntegration.js';
 const EXTENSION_PATH = GLib.path_get_dirname(GLib.filename_from_uri(import.meta.url)[0]);
 const LAYOUT_KEY = 'layout-json';
 const GRID_SIZE = 20;
-const WIDGET_GAP = 14;
+// Gap = grid step, and every size is a whole number of steps: edges of any widgets always line up.
+const WIDGET_GAP = GRID_SIZE;
 const SMALL_WIDGET_SIZE = 220;
 const MEDIUM_WIDGET_WIDTH = SMALL_WIDGET_SIZE * 2 + WIDGET_GAP;
 const MIN_WIDGET_WIDTH = 180;
@@ -76,10 +77,10 @@ function defaultWidgetPositions() {
     return null;
   }
 
-  const rightX = snap(Math.max(WIDGET_GAP, monitor.width - MEDIUM_WIDGET_WIDTH - WIDGET_GAP));
+  const rightX = gridClamp(monitor.width - MEDIUM_WIDGET_WIDTH - WIDGET_GAP, WIDGET_GAP, monitor.width);
   const middleX = snap(Math.max(WIDGET_GAP, rightX - SMALL_WIDGET_SIZE - WIDGET_GAP));
   const leftX = snap(Math.max(WIDGET_GAP, middleX - SMALL_WIDGET_SIZE - WIDGET_GAP));
-  const topY = Main.panel?.height ? Main.panel.height + WIDGET_GAP : WIDGET_GAP;
+  const topY = minWidgetY();
   const bottomY = snap(topY + SMALL_WIDGET_SIZE + WIDGET_GAP);
 
   return {
@@ -141,6 +142,16 @@ function clamp(value, min, max) {
 
 function snap(value) {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
+};
+
+// Top of the widget area: below the panel, on the grid.
+function minWidgetY() {
+  return Math.ceil(((Main.panel?.height ?? 0) + WIDGET_GAP) / GRID_SIZE) * GRID_SIZE;
+};
+
+// Snapped into [min, max], staying on the grid.
+function gridClamp(value, min, max) {
+  return clamp(snap(value), min, Math.max(min, Math.floor(max / GRID_SIZE) * GRID_SIZE));
 };
 
 function sizeForWidget(widget) {
@@ -317,15 +328,13 @@ class WidgetController {
       .map(widget => {
         const size = WIDGET_SIZES[widget.size] ? widget.size : 'small';
         const [defaultWidth, defaultHeight] = WIDGET_SIZES[size];
-        const savedWidth = Number.isFinite(widget.width) ? widget.width : defaultWidth;
-        const savedHeight = Number.isFinite(widget.height) ? widget.height : defaultHeight;
 
         return {
           id: String(widget.id),
           type: String(widget.type),
           size,
-          width: size === 'medium' && [440, 460].includes(savedWidth) ? defaultWidth : savedWidth,
-          height: [210, 440].includes(savedHeight) ? defaultHeight : savedHeight,
+          width: defaultWidth,
+          height: defaultHeight,
           x: Number.isFinite(widget.x) ? widget.x : 24,
           y: Number.isFinite(widget.y) ? widget.y : 80,
           data: widget.data && typeof widget.data === 'object' ? widget.data : {},
@@ -1003,10 +1012,10 @@ class WidgetController {
       const [stageX, stageY] = event.get_coords();
       const [width, height] = sizeForWidget(widget);
       const monitor = Main.layoutManager.primaryMonitor;
-      const minY = Main.panel?.height ? Main.panel.height + WIDGET_GAP : WIDGET_GAP;
+      const minY = minWidgetY();
 
-      widget.x = clamp(snap(drag.actorX + stageX - drag.stageX), WIDGET_GAP, Math.max(WIDGET_GAP, monitor.width - width - WIDGET_GAP));
-      widget.y = clamp(snap(drag.actorY + stageY - drag.stageY), minY, Math.max(minY, monitor.height - height - WIDGET_GAP));
+      widget.x = gridClamp(drag.actorX + stageX - drag.stageX, WIDGET_GAP, monitor.width - width - WIDGET_GAP);
+      widget.y = gridClamp(drag.actorY + stageY - drag.stageY, minY, monitor.height - height - WIDGET_GAP);
       actor.set_position(widget.x, widget.y);
       this._syncEditControls(widget);
       this._resolveLayout(widget, false, false);
@@ -1122,11 +1131,11 @@ class WidgetController {
     let [width, height] = sizeForWidget(widget);
     const oldWidth = width;
     const oldHeight = height;
-    const minY = Main.panel?.height ? Main.panel.height + WIDGET_GAP : WIDGET_GAP;
+    const minY = minWidgetY();
     width = clamp(Math.round(width), MIN_WIDGET_WIDTH, Math.max(MIN_WIDGET_WIDTH, monitor.width - WIDGET_GAP * 2));
     height = clamp(Math.round(height), MIN_WIDGET_HEIGHT, Math.max(MIN_WIDGET_HEIGHT, monitor.height - minY - WIDGET_GAP));
-    const x = clamp(snap(widget.x), WIDGET_GAP, Math.max(WIDGET_GAP, monitor.width - width - WIDGET_GAP));
-    const y = clamp(snap(widget.y), minY, Math.max(minY, monitor.height - height - WIDGET_GAP));
+    const x = gridClamp(widget.x, WIDGET_GAP, monitor.width - width - WIDGET_GAP);
+    const y = gridClamp(widget.y, minY, monitor.height - height - WIDGET_GAP);
 
     if (x === widget.x && y === widget.y && width === oldWidth && height === oldHeight) {
       return false;
@@ -1182,11 +1191,11 @@ class WidgetController {
 
     const [width, height] = sizeForWidget(widget);
     const minX = WIDGET_GAP;
-    const minY = Main.panel?.height ? Main.panel.height + WIDGET_GAP : WIDGET_GAP;
-    const maxX = Math.max(minX, monitor.width - width - WIDGET_GAP);
-    const maxY = Math.max(minY, monitor.height - height - WIDGET_GAP);
-    const originX = clamp(snap(widget.x), minX, maxX);
-    const originY = clamp(snap(widget.y), minY, maxY);
+    const minY = minWidgetY();
+    const maxX = gridClamp(monitor.width - width - WIDGET_GAP, minX, monitor.width);
+    const maxY = gridClamp(monitor.height - height - WIDGET_GAP, minY, monitor.height);
+    const originX = gridClamp(widget.x, minX, maxX);
+    const originY = gridClamp(widget.y, minY, maxY);
     const candidates = [];
 
     for (let y = minY; y <= maxY; y += GRID_SIZE) {
