@@ -23,6 +23,7 @@ Its features include:
 - **Photos**: a cover-style photo widget that displays pictures from your Camera, Screenshots, and Downloads folders.
 - **Battery**: battery levels for the computer and connected Bluetooth devices, with support for up to four devices.
 - **System**: CPU usage, average frequency, temperature (or package power when RAPL `energy_uj` is readable, which needs root by default), RAM usage, and kernel version.
+- **GitHub Activity**: contribution graph for the last 26 weeks, for github.com or GitHub Enterprise. Set the host and a `read:user` token in *Settings* (top-bar menu or Extensions app); the token is stored in the GNOME Keyring.
 - **Blur** (optional): with [Blur my Shell](https://github.com/aunetx/blur-my-shell) enabled, widgets get a blurred background. Tune it in Blur my Shell's preferences under *Pipelines → Widgets*.
 
 ## Prerequisites

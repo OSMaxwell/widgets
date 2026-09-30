@@ -12,6 +12,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as BatteryWidget from './widgets/battery/widget.js';
 import * as CalendarWidget from './widgets/calendar/widget.js';
 import * as ClockWidget from './widgets/clock/widget.js';
+import * as GithubWidget from './widgets/github/widget.js';
 import * as PhotosWidget from './widgets/photos/widget.js';
 import * as SystemWidget from './widgets/system/widget.js';
 import * as WeatherWidget from './widgets/weather/widget.js';
@@ -37,6 +38,7 @@ const WIDGET_MODULES = [
   PhotosWidget,
   BatteryWidget,
   SystemWidget,
+  GithubWidget,
 ];
 const WIDGETS = new Map(WIDGET_MODULES.map(widgetModule => [widgetModule.type, widgetModule]));
 const WIDGET_TYPES = WIDGET_MODULES.map(widgetModule => [widgetModule.type, widgetModule.label]);
@@ -46,8 +48,8 @@ const DEFAULT_WIDGETS = WIDGET_MODULES.map(widgetModule => ({
   size: widgetModule.defaultSize,
 }));
 const WIDGET_APP_IDS = Object.fromEntries(WIDGET_MODULES
-  .filter(widgetModule => widgetModule.appIds)
-  .map(widgetModule => [widgetModule.type, widgetModule.appIds]));
+  .filter(widgetModule => widgetModule.appIds || widgetModule.onClick)
+  .map(widgetModule => [widgetModule.type, widgetModule.appIds ?? []]));
 const WIDGET_SIZES = {
   small: [SMALL_WIDGET_SIZE, SMALL_WIDGET_SIZE],
   medium: [MEDIUM_WIDGET_WIDTH, SMALL_WIDGET_SIZE],
@@ -86,6 +88,7 @@ function defaultWidgetPositions() {
     clock: {x: middleX, y: bottomY},
     battery: {x: rightX, y: bottomY},
     system: {x: leftX, y: bottomY},
+    github: {x: leftX, y: snap(bottomY + SMALL_WIDGET_SIZE + WIDGET_GAP)},
   };
 };
 
@@ -245,6 +248,8 @@ class WidgetController {
     }, this);
     reloadBlur();
 
+    this._layoutSettings.connectObject('changed::github-host', () => this._rebuildWidgets(), this);
+
     this._timeouts.push(GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
       this._refreshWidgets();
       return GLib.SOURCE_CONTINUE;
@@ -263,6 +268,7 @@ class WidgetController {
     global.stage.disconnectObject(this);
     Main.layoutManager.disconnectObject(this);
     Main.extensionManager.disconnectObject(this);
+    this._layoutSettings.disconnectObject(this);
     this._interfaceSettings.disconnectObject(this);
     this._weatherSettings?.disconnectObject(this);
 
@@ -753,6 +759,13 @@ class WidgetController {
   };
 
   _openWidgetApp(type) {
+    const onClick = WIDGETS.get(type)?.onClick;
+
+    if (onClick) {
+      onClick(this._extension);
+      return;
+    };
+
     for (const appId of WIDGET_APP_IDS[type] ?? []) {
       if (!desktopAppExists(appId)) {
         continue;
@@ -950,6 +963,7 @@ class WidgetController {
       weather: this._weather,
       weatherLocation: this._weatherLocation,
       createLabel: this._label.bind(this),
+      settings: this._layoutSettings,
       sizeForWidget,
     });
   };
