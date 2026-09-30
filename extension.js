@@ -16,6 +16,7 @@ import * as PhotosWidget from './widgets/photos/widget.js';
 import * as SystemWidget from './widgets/system/widget.js';
 import * as WeatherWidget from './widgets/weather/widget.js';
 import { configureLogger, resetLogger, warn } from './logger.js';
+import { BMS_UUID, attachBlur, blurAvailable, loadBlur } from './blur.js';
 import { VERTICAL } from './compat.js';
 import { WorkspaceIntegration } from './workspaceIntegration.js';
 
@@ -229,6 +230,20 @@ class WidgetController {
       this
     );
 
+    let blurActive = false;
+    const reloadBlur = () => loadBlur().then(() => {
+      if (this._layer && blurAvailable() !== blurActive) {
+        blurActive = blurAvailable();
+        this._rebuildWidgets();
+      };
+    });
+
+    Main.extensionManager.connectObject('extension-state-changed', (_manager, extension) => {
+      if (extension.uuid === BMS_UUID) {
+        reloadBlur();
+      };
+    }, this);
+    reloadBlur();
 
     this._timeouts.push(GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
       this._refreshWidgets();
@@ -247,6 +262,7 @@ class WidgetController {
 
     global.stage.disconnectObject(this);
     Main.layoutManager.disconnectObject(this);
+    Main.extensionManager.disconnectObject(this);
     this._interfaceSettings.disconnectObject(this);
     this._weatherSettings?.disconnectObject(this);
 
@@ -364,11 +380,14 @@ class WidgetController {
 
   _gnomeTheme() {
     const dark = darkStyleEnabled(this._interfaceSettings);
+    const blur = blurAvailable();
 
     return {
       dark,
       accent: accentColor(this._interfaceSettings),
-      background: dark ? '#242424' : '#ffffff',
+      background: dark
+        ? (blur ? 'rgba(36, 36, 36, 0.55)' : '#242424')
+        : (blur ? 'rgba(255, 255, 255, 0.6)' : '#ffffff'),
       border: dark ? '#3d3d3d' : '#deddda',
       text: dark ? '#ffffff' : '#241f31',
       muted: dark ? '#c0bfbc' : '#5e5c64',
@@ -633,6 +652,7 @@ class WidgetController {
     actor.add_child(body);
 
     this._layer.add_child(actor);
+    attachBlur(actor, this._layer);
     const view = {
       widget,
       actor,

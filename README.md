@@ -23,6 +23,7 @@ Its features include:
 - **Photos**: a cover-style photo widget that displays pictures from your Camera, Screenshots, and Downloads folders.
 - **Battery**: battery levels for the computer and connected Bluetooth devices, with support for up to four devices.
 - **System**: CPU usage, average frequency, temperature (or package power when RAPL `energy_uj` is readable, which needs root by default), RAM usage, and kernel version.
+- **Blur** (optional): with [Blur my Shell](https://github.com/aunetx/blur-my-shell) enabled, widgets get a blurred background. Tune it in Blur my Shell's preferences under *Pipelines → Widgets*.
 
 ## Prerequisites
 
