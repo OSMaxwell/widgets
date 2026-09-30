@@ -2,16 +2,18 @@ import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { warn } from './logger.js';
 
-// Uses Blur my Shell's pipeline code the same way its own components do (via global.blur_my_shell).
+// Prefers Glass my Shell's public API (global.glass_my_shell); otherwise
+// uses Blur my Shell's pipeline code the same way its own components do (via global.blur_my_shell).
 // Widgets get a "Widgets" pipeline that is editable in Blur my Shell's preferences.
 export const BMS_UUID = 'blur-my-shell@aunetx';
+export const BLUR_UUIDS = [BMS_UUID, 'glass-my-shell@osmaxwell'];
 const PIPELINE_NAME = 'Widgets';
 const CORNER_RADIUS = 26; // matches .widget border-radius in stylesheet.css
 
 let Pipeline = null;
 
 export function blurAvailable() {
-  return Boolean(Pipeline && global.blur_my_shell?._pipelines_manager);
+  return Boolean(global.glass_my_shell || (Pipeline && global.blur_my_shell?._pipelines_manager));
 }
 
 export async function loadBlur() {
@@ -51,6 +53,11 @@ function pipelineId(bms) {
 
 // Puts a blurred wallpaper copy behind `actor`, clipped to its bounds. `layer` must span the primary monitor.
 export function attachBlur(actor, layer) {
+  // Glass my Shell returns null while Blur my Shell is active; fall through to it then.
+  if (global.glass_my_shell?.attach(actor, {radius: CORNER_RADIUS})) {
+    return;
+  }
+
   if (!blurAvailable()) {
     return;
   }

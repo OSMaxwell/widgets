@@ -18,7 +18,7 @@ import * as PhotosWidget from './widgets/photos/widget.js';
 import * as SystemWidget from './widgets/system/widget.js';
 import * as WeatherWidget from './widgets/weather/widget.js';
 import { configureLogger, resetLogger, warn } from './logger.js';
-import { BMS_UUID, attachBlur, blurAvailable, loadBlur } from './blur.js';
+import { BLUR_UUIDS, attachBlur, blurAvailable, loadBlur } from './blur.js';
 import { VERTICAL } from './compat.js';
 import { WorkspaceIntegration } from './workspaceIntegration.js';
 
@@ -234,16 +234,18 @@ class WidgetController {
       this
     );
 
-    let blurActive = false;
+    let blurState = 'none';
     const reloadBlur = () => loadBlur().then(() => {
-      if (this._layer && blurAvailable() !== blurActive) {
-        blurActive = blurAvailable();
+      const state = global.glass_my_shell ? 'glass' : blurAvailable() ? 'bms' : 'none';
+
+      if (this._layer && state !== blurState) {
+        blurState = state;
         this._rebuildWidgets();
       };
     });
 
     Main.extensionManager.connectObject('extension-state-changed', (_manager, extension) => {
-      if (extension.uuid === BMS_UUID) {
+      if (BLUR_UUIDS.includes(extension.uuid)) {
         reloadBlur();
       };
     }, this);
