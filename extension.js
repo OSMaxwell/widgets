@@ -236,7 +236,7 @@ class WidgetController {
 
     let blurState = 'none';
     const reloadBlur = () => loadBlur().then(() => {
-      const state = global.glass_my_shell ? 'glass' : blurAvailable() ? 'bms' : 'none';
+      const state = `${Boolean(global.glass_my_shell)}:${Boolean(global.blur_my_shell)}:${blurAvailable()}`;
 
       if (this._layer && state !== blurState) {
         blurState = state;
