@@ -532,6 +532,10 @@ class WidgetController {
     }, this);
 
     this._indicator.menu.addMenuItem(resetItem);
+
+    const settingsItem = new PopupMenu.PopupMenuItem('Settings…');
+    settingsItem.connectObject('activate', () => this._extension.openPreferences(), this);
+    this._indicator.menu.addMenuItem(settingsItem);
     Main.panel.addToStatusArea(this._extension.uuid, this._indicator);
   };
 
