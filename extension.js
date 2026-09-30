@@ -456,14 +456,21 @@ class WidgetController {
   _gnomeTheme() {
     const dark = darkStyleEnabled(this._interfaceSettings);
     const blur = blurAvailable();
+    // Glass my Shell draws its own rim and tint; keep the widget layer light so the glass shows.
+    const glass = Boolean(global.glass_my_shell);
+    const background = glass
+      ? (dark ? 'rgba(20, 20, 20, 0.18)' : 'rgba(255, 255, 255, 0.2)')
+      : blur
+        ? (dark ? 'rgba(36, 36, 36, 0.55)' : 'rgba(255, 255, 255, 0.6)')
+        : (dark ? '#242424' : '#ffffff');
 
     return {
       dark,
       accent: accentColor(this._interfaceSettings),
-      background: dark
-        ? (blur ? 'rgba(36, 36, 36, 0.55)' : '#242424')
-        : (blur ? 'rgba(255, 255, 255, 0.6)' : '#ffffff'),
-      border: dark ? '#3d3d3d' : '#deddda',
+      background,
+      border: glass
+        ? (dark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.08)')
+        : (dark ? '#3d3d3d' : '#deddda'),
       text: dark ? '#ffffff' : '#241f31',
       muted: dark ? '#c0bfbc' : '#5e5c64',
     };
