@@ -1,6 +1,7 @@
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
@@ -248,7 +249,11 @@ class WidgetController {
     }, this);
     reloadBlur();
 
-    this._layoutSettings.connectObject('changed::github-host', () => this._rebuildWidgets(), this);
+    this._layoutSettings.connectObject(
+      'changed::github-host', () => this._rebuildWidgets(),
+      'changed::dim-when-focused', () => this._syncDim(),
+      this);
+    global.display.connectObject('notify::focus-window', () => this._syncDim(), this);
 
     this._timeouts.push(GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 30, () => {
       this._refreshWidgets();
@@ -269,6 +274,7 @@ class WidgetController {
     Main.layoutManager.disconnectObject(this);
     Main.extensionManager.disconnectObject(this);
     this._layoutSettings.disconnectObject(this);
+    global.display.disconnectObject(this);
     this._interfaceSettings.disconnectObject(this);
     this._weatherSettings?.disconnectObject(this);
 
@@ -363,10 +369,23 @@ class WidgetController {
       y_expand: true,
     });
 
+    this._layer.add_effect_with_name('dim', new Clutter.DesaturateEffect({factor: 0}));
     backgroundGroup.add_child(this._layer);
     raiseActor(this._layer);
+    this._syncDim(false);
     this._syncLayerGeometry();
     this._workspaceIntegration.setSource(this._layer);
+  };
+
+  // macOS-style: fade widgets while an app window has focus.
+  _syncDim(animate = true) {
+    const focus = global.display.focus_window;
+    const dim = !this._editMode && this._layoutSettings.get_boolean('dim-when-focused') &&
+      Boolean(focus) && focus.window_type !== Meta.WindowType.DESKTOP;
+    const duration = animate ? 250 : 0;
+
+    this._layer?.ease({opacity: dim ? 179 : 255, duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+    this._layer?.ease_property('@effects.dim.factor', dim ? 1 : 0, {duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
   };
 
   _syncLayerGeometry() {
@@ -548,6 +567,7 @@ class WidgetController {
   setEditMode(enabled) {
     this._editMode = enabled;
     this._rebuildWidgets();
+    this._syncDim();
   };
 
   addWidget(type) {

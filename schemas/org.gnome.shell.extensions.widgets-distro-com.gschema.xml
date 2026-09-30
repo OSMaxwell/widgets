@@ -6,6 +6,11 @@
       <summary>Serialized widget layout</summary>
       <description>Stores widget types, sizes, and desktop positions as JSON.</description>
     </key>
+    <key name="dim-when-focused" type="b">
+      <default>true</default>
+      <summary>Dim widgets when an app is focused</summary>
+      <description>Desaturate and fade widgets while an application window has focus, like macOS.</description>
+    </key>
     <key name="github-host" type="s">
       <default>''</default>
       <summary>GitHub host</summary>

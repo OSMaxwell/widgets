@@ -1,4 +1,5 @@
 import Adw from 'gi://Adw';
+import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
 
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
@@ -8,6 +9,15 @@ export default class WidgetsPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
     const settings = this.getSettings();
     const page = new Adw.PreferencesPage();
+    const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
+    const dimRow = new Adw.SwitchRow({
+      title: 'Dim widgets when an app is focused',
+      subtitle: 'Widgets fade to greyscale while a window has focus',
+    });
+
+    settings.bind('dim-when-focused', dimRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+    appearance.add(dimRow);
+    page.add(appearance);
     const group = new Adw.PreferencesGroup({
       title: 'GitHub Activity',
       description: 'Use a personal access token with only the read:user scope. It is stored in the GNOME Keyring.',
