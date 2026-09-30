@@ -10,6 +10,7 @@ export const type = 'photos';
 export const label = 'Photos';
 export const stylesheet = 'widgets/photos/stylesheet.css';
 export const defaultSize = 'medium';
+export const sizes = ['small', 'medium', 'large'];
 
 const IMAGE_EXTENSIONS = ['.avif', '.bmp', '.gif', '.jpeg', '.jpg', '.png', '.svg', '.webp'];
 const PHOTO_CACHE_TTL_MS = 60 * 1000;

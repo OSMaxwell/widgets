@@ -6,6 +6,7 @@ export const type = 'system';
 export const label = 'System';
 export const stylesheet = 'widgets/system/stylesheet.css';
 export const defaultSize = 'small';
+export const sizes = ['small', 'medium'];
 
 const REFRESH_SECONDS = 2;
 const RAPL_ENERGY = '/sys/class/powercap/intel-rapl:0/energy_uj';

@@ -603,6 +603,21 @@ class WidgetController {
     this._rebuildWidgets();
   };
 
+  resizeWidget(id) {
+    const widget = this._widgets.find(candidate => candidate.id === id);
+    const sizes = WIDGETS.get(widget?.type)?.sizes ?? [];
+
+    if (sizes.length < 2) {
+      return;
+    };
+
+    widget.size = sizes[(sizes.indexOf(widget.size) + 1) % sizes.length];
+    [widget.width, widget.height] = WIDGET_SIZES[widget.size];
+    this._resolveLayout(widget, false, true);
+    this._saveWidgets();
+    this._rebuildWidgets();
+  };
+
   removeWidget(id) {
     this._widgets = this._widgets.filter(widget => widget.id !== id);
     this._saveWidgets();
@@ -738,10 +753,22 @@ class WidgetController {
         duration: 130,
         mode: Clutter.AnimationMode.EASE_OUT_QUAD,
       });
+
+      view.resizeButton?.ease({
+        x: button.x - view.removeButton.get_preferred_width(-1)[1] - 4,
+        y: button.y,
+        duration: 130,
+        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+      });
     } else {
       view.editBorder?.set_position(overlay.x, overlay.y);
       view.editBorder?.set_size(overlay.width, overlay.height);
       view.removeButton?.set_position(button.x, button.y);
+      view.resizeButton?.set_position(button.x - view.removeButton.get_preferred_width(-1)[1] - 4, button.y);
+    };
+
+    if (view.resizeButton) {
+      raiseActor(view.resizeButton);
     };
 
     if (view.editBorder) {
@@ -772,6 +799,21 @@ class WidgetController {
 
     removeButton.connectObject('clicked', () => this.removeWidget(view.widget.id), this);
     this._layer.add_child(removeButton);
+
+    if ((WIDGETS.get(view.widget.type)?.sizes?.length ?? 0) > 1) {
+      const resizeButton = new St.Button({
+        style_class: 'icon-button',
+        icon_name: 'view-fullscreen-symbolic',
+        reactive: true,
+        can_focus: true,
+        track_hover: true,
+        accessible_name: 'Resize widget',
+      });
+
+      resizeButton.connectObject('clicked', () => this.resizeWidget(view.widget.id), this);
+      this._layer.add_child(resizeButton);
+      view.resizeButton = resizeButton;
+    };
 
     view.editBorder = editBorder;
     view.removeButton = removeButton;

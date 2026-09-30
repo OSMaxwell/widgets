@@ -24,6 +24,8 @@ Its features include:
 - **Battery**: battery levels for the computer and connected Bluetooth devices, with support for up to four devices.
 - **System**: CPU usage, average frequency, temperature (or package power when RAPL `energy_uj` is readable, which needs root by default), RAM usage, and kernel version.
 - **GitHub Activity**: contribution graph for the last 26 weeks, for github.com or GitHub Enterprise. Set the host and a `read:user` token in *Settings* (top-bar menu or Extensions app); the token is stored in the GNOME Keyring.
+- **Sizes**: in *Edit Widgets*, the resize button cycles Clock, Photos, System and GitHub through their supported sizes.
+- **Dim when focused**: like macOS, widgets fade to greyscale while an app window has focus (toggle in *Settings*).
 - **Blur** (optional): with [Blur my Shell](https://github.com/aunetx/blur-my-shell) enabled, widgets get a blurred background. Tune it in Blur my Shell's preferences under *Pipelines → Widgets*.
 
 ## Prerequisites

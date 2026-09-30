@@ -11,6 +11,7 @@ export const type = 'github';
 export const label = 'GitHub Activity';
 export const stylesheet = 'widgets/github/stylesheet.css';
 export const defaultSize = 'medium';
+export const sizes = ['medium', 'large'];
 
 const MAX_WEEKS = 53;
 const INSET = 32; // .widget padding 15px + border 1px, both sides
