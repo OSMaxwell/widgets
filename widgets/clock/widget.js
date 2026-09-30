@@ -54,6 +54,8 @@ const AnalogClockFace = GObject.registerClass(
 			});
 
 			this._dark = theme?.dark ?? false;
+			// Round dial on glass, like the macOS clock widget; square dial otherwise.
+			this._round = theme?.glass ?? false;
 			this._accent = colorFromHex(theme?.accent, [0.86, 0.1, 0.12]);
 
 			this._repaintTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
@@ -107,7 +109,7 @@ const AnalogClockFace = GObject.registerClass(
 				const dy = Math.sin(angle);
 				const major = tick % 5 === 0;
 				const tickLength = major ? 16 : 8;
-				const edgeDistance = halfEdge / Math.max(Math.abs(dx), Math.abs(dy));
+				const edgeDistance = this._round ? halfEdge : halfEdge / Math.max(Math.abs(dx), Math.abs(dy));
 				const lineWidth = major ? 2.2 : 1.0;
 				const outer = edgeDistance + lineWidth;
 				const inner = outer - tickLength;

@@ -466,6 +466,7 @@ class WidgetController {
 
     return {
       dark,
+      glass,
       accent: accentColor(this._interfaceSettings),
       background,
       border: glass
@@ -483,7 +484,10 @@ class WidgetController {
       return null;
     };
 
-    return widgetModule.style(this._gnomeTheme());
+    const theme = this._gnomeTheme();
+
+    // On glass the shader draws the edge; a CSS border on top reads as a grey ring.
+    return widgetModule.style(theme) + (theme.glass ? ' border-color: transparent;' : '');
   };
 
   _clearWeatherInfo() {
