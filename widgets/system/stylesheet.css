@@ -1,0 +1,23 @@
+.widget-system .widget-body {
+  spacing: 6px;
+}
+
+.widget-system-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.widget-system-value {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.widget-system-value.widget-system-small {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.widget-system-bar {
+  height: 6px;
+  border-radius: 3px;
+}

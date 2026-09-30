@@ -22,6 +22,7 @@ Its features include:
 - **Weather**: current conditions, temperature, and feels-like information using your GNOME Weather location.
 - **Photos**: a cover-style photo widget that displays pictures from your Camera, Screenshots, and Downloads folders.
 - **Battery**: battery levels for the computer and connected Bluetooth devices, with support for up to four devices.
+- **System**: CPU usage, average frequency, temperature (or package power when RAPL `energy_uj` is readable, which needs root by default), RAM usage, and kernel version.
 
 ## Prerequisites
 
@@ -38,6 +39,7 @@ Its features include:
    ```
    *Note: Remember to restart GNOME Shell and enable the extension via the "Extensions" app.*
 
+ - **Packaging:** `widgets/system/test.mjs` is a dev-only check (`node widgets/system/test.mjs`); leave it out of the extension zip.
 
 ## Resources
 

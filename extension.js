@@ -13,6 +13,7 @@ import * as BatteryWidget from './widgets/battery/widget.js';
 import * as CalendarWidget from './widgets/calendar/widget.js';
 import * as ClockWidget from './widgets/clock/widget.js';
 import * as PhotosWidget from './widgets/photos/widget.js';
+import * as SystemWidget from './widgets/system/widget.js';
 import * as WeatherWidget from './widgets/weather/widget.js';
 import { configureLogger, resetLogger, warn } from './logger.js';
 import { VERTICAL } from './compat.js';
@@ -34,6 +35,7 @@ const WIDGET_MODULES = [
   WeatherWidget,
   PhotosWidget,
   BatteryWidget,
+  SystemWidget,
 ];
 const WIDGETS = new Map(WIDGET_MODULES.map(widgetModule => [widgetModule.type, widgetModule]));
 const WIDGET_TYPES = WIDGET_MODULES.map(widgetModule => [widgetModule.type, widgetModule.label]);
@@ -82,6 +84,7 @@ function defaultWidgetPositions() {
     photos: {x: rightX, y: topY},
     clock: {x: middleX, y: bottomY},
     battery: {x: rightX, y: bottomY},
+    system: {x: leftX, y: bottomY},
   };
 };
 
